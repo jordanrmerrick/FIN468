@@ -1,77 +1,69 @@
 import pandas as pd
 import numpy as np
-import requests
-import json
 from scipy import stats
+import POST_Request_Ticker_Index as ti
 
+def marketReturn(index):
+    percent_change = []
+    for index_value in range(1, len(index)):
+        percent_change.append((index[index_value] - index[index_value - 1]) / index[index_value - 1])
 
+    return (((1 + sum(percent_change)/len(percent_change)) ** 365) - 1)
 
-def historicalDataGet(ticker):
-    url = 'https://api.worldtradingdata.com/api/v1/history?symbol=' + ticker + '&sort=newest&api_token=i0IqIaBJau36El9cM41zCxS4guNb7aBrJk3hBWfpzvPAQM9rVwhty70TvjVJ&date_from=2014-09-20'
-    url_request = requests.get(url)
-    text = url_request.text
-    xlss = json.loads(text)
+def beta(prices, index):
 
-    prices = []
-    prices_final = []
-    keys = list(xlss['history'].keys())
-    for i in range(len(keys)):
-        prices.append(xlss['history'][keys[i]]['close'])
-
-    for k in range(len(prices)):
-        prices_final.append(float(prices[k]))
-
-    return prices_final
-
-def covariance(prices, prices_index):
+    # Call all lists needed
     percent_change = []
     percent_change_index = []
     averages_pc = []
     averages_pci = []
-    average = []
+    product = []
+    varsquare = []
 
-    if len(prices) != len(prices_index):
+    # Initial test
+    if len(prices) != len(index):
         raise ValueError
 
     n = len(prices)
-    for value in range(1, len(prices)):
-        percent_change.append((prices[-value - 1] - prices[-value]) / prices[-value])
 
-    for index_value in range(1, len(prices_index)):
-        percent_change_index.append(
-            (prices_index[-index_value - 1] - prices_index[-index_value]) / prices_index[-index_value])
+    for value in range(1, len(prices)):
+        percent_change.append((prices[value] - prices[value - 1]) / prices[value - 1])
+
+    for index_value in range(1, len(index)):
+        percent_change_index.append((index[index_value] - index[index_value - 1]) / index[index_value - 1])
 
     avg_x = sum(percent_change)/n
     avg_y = sum(percent_change_index)/n
 
+    # Calculates the average (xi - xbar) - VERIFIED
     for x in range(len(percent_change)):
         averages_pc.append(percent_change[x] - avg_x)
+
+    # Calculates the average (yi - ybar) - VERIFIED
     for y in range(len(percent_change_index)):
-        averages_pci.append(percent_change[y] - avg_y)
+        averages_pci.append(percent_change_index[y] - avg_y)
 
+    # Calculates product of (xi - xbar)*(yi - ybar)
     for z in range(len(percent_change)):
-        average.append(averages_pc[z]*averages_pci[z])
+        product.append(averages_pc[z]*averages_pci[z])
 
-    covar = (1/(n-1))*sum(average)
+    for j in range(len(percent_change_index)):
+        varsquare.append((percent_change_index[j] - avg_y) ** 2)
 
-    print(covar/np.var(percent_change_index))
+    # Variance is verified
+    variance = (1/n)*sum(varsquare)
+    covar = (1/(n - 1))*sum(product)
+    beta = covar/variance
 
-def statisticalMethods(ticker, prices, prices_index):
-    percent_change = []
-    percent_change_index = []
+    return beta
 
-    for value in range(1, len(prices)):
-        percent_change.append((prices[-value - 1] - prices[-value])/prices[-value])
 
-    for index_value in range(1, len(prices_index)):
-        percent_change_index.append((prices_index[-index_value - 1] - prices_index[-index_value])/prices_index[-index_value])
+def CAPM(ticker):
 
-    variance = np.var(percent_change_index)
-    slope, intercept, r_value, p_value, std_err = stats.linregress(percent_change, percent_change_index)
-    covar = np.cov(percent_change, percent_change_index)
-    print(slope)
-    print(covar)
-    print(slope/variance)
+    asset_beta = beta(ti.tickerData(ticker), ti.IndexData())
+    risk_free_rate = ti.RiskFreeRate()
+    market_return = marketReturn(ti.IndexData())
 
-# statisticalMethods('IT', historicalDataGet('IT'), historicalDataGet('SPY'))
-covariance(historicalDataGet('IT'), historicalDataGet('SPY'))
+    print('The expected return of {} is {}%.'.format(ticker, round((risk_free_rate + asset_beta*(market_return - risk_free_rate))*100, 4)))
+
+CAPM('AMZN')

@@ -88,7 +88,7 @@ def get_sustainability_data(ticker):
     controversy_score = re.findall(r"<div class=\"D\(ib\) Fz\(36px\) Fw\(500\)\" data-reactid=\"133\">(.*)</div>", str(controversy))
     results.update({"Controversy Score": int(controversy_score[0])})
 
-    return results
+    print(results)
 
 def get_profile_data(ticker):
     if type(ticker) != str:
@@ -114,4 +114,4 @@ def get_profile_data(ticker):
     
     """
 
-get_profile_data('IT')
+get_sustainability_data('IT')
